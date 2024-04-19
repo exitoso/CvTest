@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
+import ru.sberdevices.common.logger.AndroidLoggerDelegate
+import ru.sberdevices.common.logger.Logger
 import ru.sberdevices.cv.detection.CvApi
 import ru.sberdevices.cv.detection.CvApiFactory
 import ru.sberdevices.cv.detection.CvApiFactoryImpl
@@ -24,10 +26,16 @@ private const val PERMISSION_REQUEST_CODE = 1
 
 class MainActivity : AppCompatActivity() {
 
+    private val logger = Logger.get(javaClass.simpleName)
+
     private val scope = CoroutineScope(Dispatchers.IO)
 
     private var cvApi: CvApi? = null
     private var cvApiJob: Job? = null
+
+    init {
+        Logger.setDelegates(AndroidLoggerDelegate())
+    }
 
     override fun onRequestPermissionsResult(
         requestCode: Int,
@@ -68,19 +76,19 @@ class MainActivity : AppCompatActivity() {
         val cvApiFactory: CvApiFactory = CvApiFactoryImpl(this)
         cvApi = cvApiFactory.get()
         val isCvAvailable = cvApi?.isAvailableOnDevice()
-        Log.d("AndroidLauncherKotlin", "isCvAvailable = $isCvAvailable")
+        logger.debug { "isCvAvailable = $isCvAvailable"}
 
         cvApiJob = scope.launch {
             val version = cvApi?.getVersion()
             val serviceInfo = cvApi?.getServiceInfo()
-            Log.d("AndroidLauncherKotlin", "Version $version, service info $serviceInfo}")
+            logger.debug { "Version $version, service info $serviceInfo}"}
         }
 
         cvApi?.observeHumans(setOf(HumansDetectionAspect.Body.Landmarks.HomaNet))
-            ?.onStart { Log.d("AndroidLauncherKotlin", "init humans job") }
-            ?.catch { Log.e("AndroidLauncherKotlin", it.message.orEmpty(), it) }
-            ?.onCompletion { Log.d("AndroidLauncherKotlin", "humans job completed") }
-            ?.onEach { Log.d("AndroidLauncherKotlin", "onEach humans job $it") }
+            ?.onStart { logger.debug { "init humans job"} }
+            ?.catch { logger.debug { "ERROR: $it" } }
+            ?.onCompletion { logger.debug { "humans job completed"} }
+            ?.onEach { logger.debug { "onEach humans job $it"} }
             ?.launchIn(lifecycleScope + Dispatchers.IO)
     }
 
